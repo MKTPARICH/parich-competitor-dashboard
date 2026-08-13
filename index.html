@@ -341,12 +341,21 @@ function renderKpis(posts) {
     `<div class="kpi" style="border-top-color:${c}"><div class="label">${l}</div><div class="value" style="color:${c}">${v}</div><div class="sub">${s}</div></div>`).join('');
 }
 
-// เปรียบเทียบสัปดาห์ล่าสุด vs สัปดาห์ก่อนหน้า (ไม่ผูกกับตัวกรองสัปดาห์ — ใช้ 2 สัปดาห์ล่าสุดเสมอ ผูกกับตัวกรองแบรนด์)
+// เปรียบเทียบสัปดาห์ที่เลือก (ตัวกรองสัปดาห์) vs สัปดาห์ก่อนหน้า — ถ้าเลือก "ทุกสัปดาห์" จะใช้ 2 สัปดาห์ล่าสุดเป็นค่าเริ่มต้น ผูกกับตัวกรองแบรนด์ด้วย
 function renderWowCompare() {
   const el = document.getElementById('wowCompare');
   if (weeks.length < 2) { el.innerHTML = `<div class="kpi"><div class="sub">ต้องมีข้อมูลอย่างน้อย 2 สัปดาห์ถึงจะเปรียบเทียบ Week over Week ได้</div></div>`; return; }
+  let idx = 0;
+  if (activeWeek !== 'ALL') {
+    const found = weeks.findIndex(w => w.name === activeWeek);
+    if (found !== -1) idx = found;
+  }
+  if (idx >= weeks.length - 1) {
+    el.innerHTML = `<div class="kpi"><div class="sub">สัปดาห์ที่เลือก (${esc(weeks[idx].label)}) เป็นสัปดาห์แรกสุดที่มีข้อมูล — ไม่มีสัปดาห์ก่อนหน้าให้เปรียบเทียบ</div></div>`;
+    return;
+  }
   const filterB = ps => activeBrand === 'ALL' ? ps : ps.filter(p => p.brand === activeBrand);
-  const cur = filterB(weeks[0].posts), prev = filterB(weeks[1].posts);
+  const cur = filterB(weeks[idx].posts), prev = filterB(weeks[idx + 1].posts);
   const stat = ps => {
     const n = ps.length;
     const likes = ps.reduce((s, p) => s + p.reactions, 0);
@@ -370,7 +379,7 @@ function renderWowCompare() {
     ['🔁 Total Shares', 'shares', fmt, '#4ade80'],
   ];
   el.innerHTML =
-    `<div class="kpi" style="border-top-color:#9d8cff"><div class="label">ช่วงที่เปรียบเทียบ</div><div class="value" style="font-size:15px;color:#9d8cff">${esc(weeks[0].label)}</div><div class="sub">เทียบกับสัปดาห์ก่อนหน้า: ${esc(weeks[1].label)}${activeBrand !== 'ALL' ? ` · เฉพาะ ${esc(activeBrand)}` : ''}</div></div>` +
+    `<div class="kpi" style="border-top-color:#9d8cff"><div class="label">ช่วงที่เปรียบเทียบ</div><div class="value" style="font-size:15px;color:#9d8cff">${esc(weeks[idx].label)}</div><div class="sub">เทียบกับสัปดาห์ก่อนหน้า: ${esc(weeks[idx + 1].label)}${activeBrand !== 'ALL' ? ` · เฉพาะ ${esc(activeBrand)}` : ''}</div></div>` +
     METRICS.map(([label, key, f, color]) => `
       <div class="kpi" style="border-top-color:${color}">
         <div class="label">${label}</div>
