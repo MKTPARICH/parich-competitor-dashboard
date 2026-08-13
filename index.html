@@ -236,7 +236,10 @@ function rangeLabel(startMs, endMs) {
 }
 
 async function loadAllTabs() {
-  const res = await fetch(XLSX_URL);
+  // cache: 'no-store' + timestamp param ensures we always get the latest sheet data,
+  // not a stale cached copy from a previous visit (this is what made Week-over-Week
+  // look "frozen" — the browser was reusing an old response instead of re-fetching).
+  const res = await fetch(`${XLSX_URL}&_=${Date.now()}`, { cache: 'no-store' });
   if (!res.ok) throw new Error(`โหลดชีตไม่สำเร็จ: HTTP ${res.status}`);
   const wb = XLSX.read(await res.arrayBuffer(), { type: 'array' });
   const parsed = wb.SheetNames.map(name => {
@@ -264,6 +267,7 @@ async function loadAllTabs() {
     const times = posts.map(p => p.time.getTime()).filter(t => !isNaN(t));
     const label = times.length ? rangeLabel(Math.min(...times), Math.max(...times)) : weekLabel(tabName);
     posts.forEach(p => p.week = label);
+    console.info(`[sheet] tab "${tabName}": ${rows.length} raw rows -> ${posts.length} valid posts`);
     return { name: tabName, label, posts };
   }).filter(w => w.posts.length > 0);
   parsed.sort((a, b) => new Date(b.name) - new Date(a.name));
@@ -322,7 +326,6 @@ function renderKpis(posts) {
   const videos = posts.filter(p => p.isVideo).length;
   const vidPosts = posts.filter(p => p.isVideo);
   const avgViews = vidPosts.length ? Math.round(vidPosts.reduce((s, p) => s + p.views, 0) / vidPosts.length) : 0;
-  const deepER = likes ? (100 * (comments + shares) / likes) : 0;
   const brands = new Set(posts.map(p => p.brand)).size;
   const kpis = [
     ['📝 จำนวนโพสต์', posts.length, `${brands} แบรนด์`, '#7c6cf2'],
@@ -333,7 +336,6 @@ function renderKpis(posts) {
     ['🔁 Total Shares', fmt(shares), `Avg ${(shares / n).toFixed(1)}/โพสต์`, '#4ade80'],
     ['🎥 Video vs Non-Video', `${videos} / ${posts.length - videos}`, `วิดีโอ ${Math.round(100 * videos / n)}% ของโพสต์ทั้งหมด`, '#fb923c'],
     ['👀 Avg Video Views', fmt(avgViews), `จาก ${videos} วิดีโอโพสต์`, '#c084fc'],
-    ['📊 Deep ER Score', deepER.toFixed(2) + '%', '(Comments+Shares)/Likes', '#2dd4bf'],
   ];
   document.getElementById('kpis').innerHTML = kpis.map(([l, v, s, c]) =>
     `<div class="kpi" style="border-top-color:${c}"><div class="label">${l}</div><div class="value" style="color:${c}">${v}</div><div class="sub">${s}</div></div>`).join('');
